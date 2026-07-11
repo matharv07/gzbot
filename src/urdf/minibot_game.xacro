@@ -1,0 +1,247 @@
+<?xml version="1.0" ?>
+<!-- minibot_game.xacro — Simplified game-bot URDF for Pac-Man arena.
+     Stripped of sonar sensors and ros2_control; uses planar_move plugin.
+     Accepts xacro args for per-bot coloring and namespacing.
+
+     Usage:
+       xacro minibot_game.xacro robot_name:=ghost_0 body_r:=0.86 body_g:=0.12 body_b:=0.12
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="minibot_game">
+
+<!-- ── Xacro arguments ──────────────────────────────────────────── -->
+<xacro:arg name="robot_name" default="minibot"/>
+<xacro:arg name="body_r"     default="0.7"/>
+<xacro:arg name="body_g"     default="0.7"/>
+<xacro:arg name="body_b"     default="0.7"/>
+
+<xacro:property name="robot_name" value="$(arg robot_name)"/>
+<xacro:property name="body_r"     value="$(arg body_r)"/>
+<xacro:property name="body_g"     value="$(arg body_g)"/>
+<xacro:property name="body_b"     value="$(arg body_b)"/>
+
+<!-- ── Materials ─────────────────────────────────────────────────── -->
+<material name="bot_color">
+  <color rgba="${body_r} ${body_g} ${body_b} 1.0"/>
+</material>
+
+<material name="wheel_dark">
+  <color rgba="0.2 0.2 0.2 1.0"/>
+</material>
+
+<!-- ── base_footprint (ground-level frame) ───────────────────────── -->
+<link name="base_footprint"/>
+<joint name="base_footprint_joint" type="fixed">
+  <origin xyz="0 0 0" rpy="0 0 0"/>
+  <parent link="base_footprint"/>
+  <child link="base_link"/>
+</joint>
+
+<!-- ── base_link (chassis) ──────────────────────────────────────── -->
+<link name="base_link">
+  <inertial>
+    <origin xyz="0 0 0.033" rpy="0 0 0"/>
+    <mass value="0.262"/>
+    <inertia ixx="0.000205" iyy="0.000205" izz="0.000214"
+             ixy="0" iyz="0" ixz="0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://minibot/meshes/base_link.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="bot_color"/>
+  </visual>
+  <collision>
+    <origin xyz="0 0 0.025" rpy="0 0 0"/>
+    <geometry>
+      <cylinder radius="0.045" length="0.05"/>
+    </geometry>
+  </collision>
+</link>
+
+<!-- ── WHEELS (visual only — planar move handles motion) ─────────── -->
+<link name="wheel_front_1">
+  <inertial>
+    <origin xyz="0 0.008 0" rpy="0 0 0"/>
+    <mass value="0.044"/>
+    <inertia ixx="6.97e-06" iyy="1.255e-05" izz="6.97e-06"
+             ixy="0" iyz="0" ixz="0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0 -0.045 -0.015" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://minibot/meshes/wheel_front_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="wheel_dark"/>
+  </visual>
+  <collision>
+    <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+    <geometry>
+      <cylinder radius="0.024" length="0.014"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="wheel_right_1">
+  <inertial>
+    <origin xyz="0.008 0 0" rpy="0 0 0"/>
+    <mass value="0.044"/>
+    <inertia ixx="1.255e-05" iyy="6.97e-06" izz="6.97e-06"
+             ixy="0" iyz="0" ixz="0"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.045 0 -0.015" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://minibot/meshes/wheel_right_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="wheel_dark"/>
+  </visual>
+  <collision>
+    <origin xyz="0 0 0" rpy="0 1.5708 0"/>
+    <geometry>
+      <cylinder radius="0.024" length="0.014"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="wheel_back_1">
+  <inertial>
+    <origin xyz="0 -0.008 0" rpy="0 0 0"/>
+    <mass value="0.044"/>
+    <inertia ixx="6.97e-06" iyy="1.255e-05" izz="6.97e-06"
+             ixy="0" iyz="0" ixz="0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0 0.045 -0.015" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://minibot/meshes/wheel_back_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="wheel_dark"/>
+  </visual>
+  <collision>
+    <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+    <geometry>
+      <cylinder radius="0.024" length="0.014"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="wheel_left_1">
+  <inertial>
+    <origin xyz="-0.008 0 0" rpy="0 0 0"/>
+    <mass value="0.044"/>
+    <inertia ixx="1.255e-05" iyy="6.97e-06" izz="6.97e-06"
+             ixy="0" iyz="0" ixz="0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.045 0 -0.015" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://minibot/meshes/wheel_left_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="wheel_dark"/>
+  </visual>
+  <collision>
+    <origin xyz="0 0 0" rpy="0 1.5708 0"/>
+    <geometry>
+      <cylinder radius="0.024" length="0.014"/>
+    </geometry>
+  </collision>
+</link>
+
+<!-- ── Wheel joints ─────────────────────────────────────────────── -->
+<joint name="wheel_front_joint" type="continuous">
+  <origin xyz="0 0.045 0.015" rpy="0 0 0"/>
+  <parent link="base_link"/>
+  <child link="wheel_front_1"/>
+  <axis xyz="0 1 0"/>
+  <limit effort="0.05" velocity="31.416"/>
+  <dynamics damping="0.001" friction="0.01"/>
+</joint>
+
+<joint name="wheel_right_joint" type="continuous">
+  <origin xyz="0.045 0 0.015" rpy="0 0 0"/>
+  <parent link="base_link"/>
+  <child link="wheel_right_1"/>
+  <axis xyz="1 0 0"/>
+  <limit effort="0.05" velocity="31.416"/>
+  <dynamics damping="0.001" friction="0.01"/>
+</joint>
+
+<joint name="wheel_back_joint" type="continuous">
+  <origin xyz="0 -0.045 0.015" rpy="0 0 0"/>
+  <parent link="base_link"/>
+  <child link="wheel_back_1"/>
+  <axis xyz="0 -1 0"/>
+  <limit effort="0.05" velocity="31.416"/>
+  <dynamics damping="0.001" friction="0.01"/>
+</joint>
+
+<joint name="wheel_left_joint" type="continuous">
+  <origin xyz="-0.045 0 0.015" rpy="0 0 0"/>
+  <parent link="base_link"/>
+  <child link="wheel_left_1"/>
+  <axis xyz="-1 0 0"/>
+  <limit effort="0.05" velocity="31.416"/>
+  <dynamics damping="0.001" friction="0.01"/>
+</joint>
+
+<!-- ── Gazebo properties ────────────────────────────────────────── -->
+<gazebo reference="base_link">
+  <mu1>0.4</mu1>
+  <mu2>0.4</mu2>
+  <selfCollide>false</selfCollide>
+  <gravity>true</gravity>
+  <material>Gazebo/Grey</material>
+  <visual>
+    <material>
+      <ambient>${body_r} ${body_g} ${body_b} 1</ambient>
+      <diffuse>${body_r} ${body_g} ${body_b} 1</diffuse>
+      <specular>0.3 0.3 0.3 1</specular>
+    </material>
+  </visual>
+</gazebo>
+
+<gazebo reference="wheel_front_1">
+  <mu1>1.0</mu1>  <mu2>0.0</mu2>
+  <fdir1>1 0 0</fdir1>
+  <kp>1000000.0</kp>  <kd>1.0</kd>
+  <selfCollide>false</selfCollide>
+</gazebo>
+<gazebo reference="wheel_right_1">
+  <mu1>1.0</mu1>  <mu2>0.0</mu2>
+  <fdir1>0 1 0</fdir1>
+  <kp>1000000.0</kp>  <kd>1.0</kd>
+  <selfCollide>false</selfCollide>
+</gazebo>
+<gazebo reference="wheel_back_1">
+  <mu1>1.0</mu1>  <mu2>0.0</mu2>
+  <fdir1>1 0 0</fdir1>
+  <kp>1000000.0</kp>  <kd>1.0</kd>
+  <selfCollide>false</selfCollide>
+</gazebo>
+<gazebo reference="wheel_left_1">
+  <mu1>1.0</mu1>  <mu2>0.0</mu2>
+  <fdir1>0 1 0</fdir1>
+  <kp>1000000.0</kp>  <kd>1.0</kd>
+  <selfCollide>false</selfCollide>
+</gazebo>
+
+<!-- ── Planar move plugin (cmd_vel → motion) ────────────────────── -->
+<gazebo>
+  <plugin name="planar_move" filename="libgazebo_ros_planar_move.so">
+    <ros>
+      <namespace>/${robot_name}</namespace>
+      <remapping>cmd_vel:=cmd_vel</remapping>
+      <remapping>odom:=odom</remapping>
+    </ros>
+    <command_topic>cmd_vel</command_topic>
+    <odometry_topic>odom</odometry_topic>
+    <odometry_frame>odom</odometry_frame>
+    <robot_base_frame>base_footprint</robot_base_frame>
+    <odometry_rate>20.0</odometry_rate>
+    <publish_odom>true</publish_odom>
+    <publish_odom_tf>true</publish_odom_tf>
+  </plugin>
+</gazebo>
+
+</robot>

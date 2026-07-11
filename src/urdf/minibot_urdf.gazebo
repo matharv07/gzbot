@@ -1,0 +1,231 @@
+<?xml version="1.0" ?>
+<robot name="minibot_urdf" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+<xacro:property name="body_color" value="Gazebo/Silver" />
+
+<gazebo>
+  <!-- ROS 2: gazebo_ros2_control replaces libgazebo_ros_control.so
+       Loads controller_manager and hardware interface (GazeboSystem).
+       <parameters> is resolved at Gazebo launch time via ament index. -->
+  <plugin name="gazebo_ros2_control" filename="libgazebo_ros2_control.so">
+    <parameters>$(find minibot)/config/controllers.yaml</parameters>
+    <ros>
+      <namespace>/</namespace>
+    </ros>
+  </plugin>
+</gazebo>
+
+<gazebo reference="base_link">
+  <material>${body_color}</material>
+  <mu1>0.4</mu1>
+  <mu2>0.4</mu2>
+  <selfCollide>false</selfCollide>
+  <gravity>true</gravity>
+</gazebo>
+
+<!-- GROUND TRUTH ODOMETRY PLUGIN -->
+<gazebo>
+  <plugin name="gazebo_ros_p3d" filename="libgazebo_ros_p3d.so">
+    <ros>
+      <namespace>/</namespace>
+      <remapping>odom:=odom</remapping>
+    </ros>
+    <frame_name>odom</frame_name>
+    <body_name>base_footprint</body_name>
+    <update_rate>50.0</update_rate>
+    <gaussian_noise>0.01</gaussian_noise>
+  </plugin>
+</gazebo>
+
+<!-- ================================================================
+     OMNI-WHEEL CONTACT PHYSICS (ODE)
+     ─────────────────────────────────────────────────────────────────
+     Omni wheels have powered rubber tread in one direction and
+     free-spinning passive rollers perpendicular to that direction.
+
+     ODE contact model:
+       fdir1  — direction of ACTIVE traction (in child link frame)
+       mu1    — Coulomb friction along fdir1     → HIGH (wheel drives robot)
+       mu2    — Coulomb friction ⊥ fdir1         → ~0   (rollers free-spin)
+
+     Joint axis ↔ fdir1 mapping (all link frames = world frame, rpy=0):
+       front  spin-axis= Y  active= X  fdir1="1 0 0"
+       back   spin-axis=-Y  active= X  fdir1="1 0 0"
+       right  spin-axis= X  active= Y  fdir1="0 1 0"
+       left   spin-axis=-X  active= Y  fdir1="0 1 0"
+
+     kp/kd: stiff contact to prevent wheel sinking into ground.
+================================================================ -->
+
+<gazebo reference="wheel_front_1">
+  <material>${body_color}</material>
+  <mu1>1.0</mu1>
+  <mu2>0.0</mu2>
+  <fdir1>1 0 0</fdir1>
+  <kp>1000000.0</kp>
+  <kd>1.0</kd>
+  <selfCollide>false</selfCollide>
+</gazebo>
+
+<gazebo reference="wheel_right_1">
+  <material>${body_color}</material>
+  <mu1>1.0</mu1>
+  <mu2>0.0</mu2>
+  <fdir1>0 1 0</fdir1>
+  <kp>1000000.0</kp>
+  <kd>1.0</kd>
+  <selfCollide>false</selfCollide>
+</gazebo>
+
+<gazebo reference="wheel_back_1">
+  <material>${body_color}</material>
+  <mu1>1.0</mu1>
+  <mu2>0.0</mu2>
+  <fdir1>1 0 0</fdir1>
+  <kp>1000000.0</kp>
+  <kd>1.0</kd>
+  <selfCollide>false</selfCollide>
+</gazebo>
+
+<gazebo reference="wheel_left_1">
+  <material>${body_color}</material>
+  <mu1>1.0</mu1>
+  <mu2>0.0</mu2>
+  <fdir1>0 1 0</fdir1>
+  <kp>1000000.0</kp>
+  <kd>1.0</kd>
+  <selfCollide>false</selfCollide>
+</gazebo>
+
+<!-- ================================================================
+     2D 90-DEGREE RAY SENSORS ON SONARS
+     ─────────────────────────────────────────────────────────────────
+     Provides Lidar-like pointcloud data from each sonar location.
+================================================================ -->
+
+<gazebo reference="sensor_front_1">
+  <sensor name="sensor_front" type="ray">
+    <pose>0 0 0 0 0 1.570796</pose>
+    <visualize>true</visualize>
+    <update_rate>10</update_rate>
+    <ray>
+      <scan>
+        <horizontal>
+          <samples>120</samples>
+          <resolution>1</resolution>
+          <min_angle>-1.047197</min_angle>
+          <max_angle>1.047197</max_angle>
+        </horizontal>
+      </scan>
+      <range>
+        <min>0.02</min>
+        <max>4.5</max>
+        <resolution>0.01</resolution>
+      </range>
+    </ray>
+    <plugin name="gazebo_ros_front_sonar" filename="libgazebo_ros_ray_sensor.so">
+      <ros>
+        <remapping>~/out:=/scan/front</remapping>
+      </ros>
+      <output_type>sensor_msgs/LaserScan</output_type>
+      <frame_name>sensor_front_1</frame_name>
+    </plugin>
+  </sensor>
+</gazebo>
+
+<gazebo reference="sensor_back_1">
+  <sensor name="sensor_back" type="ray">
+    <pose>0 0 0 0 0 -1.570796</pose>
+    <visualize>true</visualize>
+    <update_rate>10</update_rate>
+    <ray>
+      <scan>
+        <horizontal>
+          <samples>120</samples>
+          <resolution>1</resolution>
+          <min_angle>-1.047197</min_angle>
+          <max_angle>1.047197</max_angle>
+        </horizontal>
+      </scan>
+      <range>
+        <min>0.02</min>
+        <max>4.5</max>
+        <resolution>0.01</resolution>
+      </range>
+    </ray>
+    <plugin name="gazebo_ros_back_sonar" filename="libgazebo_ros_ray_sensor.so">
+      <ros>
+        <remapping>~/out:=/scan/back</remapping>
+      </ros>
+      <output_type>sensor_msgs/LaserScan</output_type>
+      <frame_name>sensor_back_1</frame_name>
+    </plugin>
+  </sensor>
+</gazebo>
+
+<gazebo reference="sensor_left_1">
+  <sensor name="sensor_left" type="ray">
+    <pose>0 0 0 0 0 3.141592</pose>
+    <visualize>true</visualize>
+    <update_rate>10</update_rate>
+    <ray>
+      <scan>
+        <horizontal>
+          <samples>120</samples>
+          <resolution>1</resolution>
+          <min_angle>-1.047197</min_angle>
+          <max_angle>1.047197</max_angle>
+        </horizontal>
+      </scan>
+      <range>
+        <min>0.02</min>
+        <max>4.5</max>
+        <resolution>0.01</resolution>
+      </range>
+    </ray>
+    <plugin name="gazebo_ros_left_sonar" filename="libgazebo_ros_ray_sensor.so">
+      <ros>
+        <remapping>~/out:=/scan/left</remapping>
+      </ros>
+      <output_type>sensor_msgs/LaserScan</output_type>
+      <frame_name>sensor_left_1</frame_name>
+    </plugin>
+  </sensor>
+</gazebo>
+
+<gazebo reference="sensor_right_1">
+  <sensor name="sensor_right" type="ray">
+    <pose>0 0 0 0 0 0</pose>
+    <visualize>true</visualize>
+    <update_rate>10</update_rate>
+    <ray>
+      <scan>
+        <horizontal>
+          <samples>120</samples>
+          <resolution>1</resolution>
+          <min_angle>-1.047197</min_angle>
+          <max_angle>1.047197</max_angle>
+        </horizontal>
+      </scan>
+      <range>
+        <min>0.02</min>
+        <max>4.5</max>
+        <resolution>0.01</resolution>
+      </range>
+    </ray>
+    <plugin name="gazebo_ros_right_sonar" filename="libgazebo_ros_ray_sensor.so">
+      <ros>
+        <remapping>~/out:=/scan/right</remapping>
+      </ros>
+      <output_type>sensor_msgs/LaserScan</output_type>
+      <frame_name>sensor_right_1</frame_name>
+    </plugin>
+  </sensor>
+</gazebo>
+
+<gazebo reference="nrf24l01_link">
+  <material>Gazebo/Green</material>
+  <selfCollide>false</selfCollide>
+</gazebo>
+
+</robot>

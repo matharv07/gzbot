@@ -1,0 +1,401 @@
+<?xml version="1.0" ?>
+<robot name="minibot_urdf" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+<xacro:include filename="$(find minibot)/urdf/materials.xacro" />
+<!-- minibot_urdf.trans is ROS 1 only — replaced by <ros2_control> block below -->
+<xacro:include filename="$(find minibot)/urdf/minibot_urdf.gazebo" />
+
+<!-- ================================================================
+     MASS BUDGET — 472 g total
+     ─────────────────────────────────────────────────────────────────
+     base_link  : 262.0 g
+       • Chassis / PCB stack   ~110.3 g
+       • Raspberry Pi Zero 2W    10.0 g   (official: ~10 g)
+       • 11.1 V 3S 2600 mAh Li  130.0 g   (3×18650 + BMS)
+       • TB6612FNG motor driver    5.0 g
+       • LM2596 buck converter     5.0 g
+       • NRF24L01 transceiver      1.7 g
+     4× wheel_*  :  44.0 g each
+       • 48 mm omni wheel         33.0 g
+       • N20 GA12 100:1 motor     11.0 g   (datasheet: 11 g)
+     4× sensor_* :   8.5 g each
+       • HC-SR04P ultrasonic
+     Total: 0.262 + 4×0.044 + 4×0.0085 = 0.472 kg ✓
+
+     INERTIA SCALING (geometry unchanged, mass rescaled)
+       base_link : scale = 0.262 / 0.45868 = 0.5712
+       wheels    : scale = 0.044 / 0.06312 = 0.6971
+       sensors   : scale = 0.0085/ 0.01012 = 0.8397
+
+     JOINT LIMITS — N20 GA12 100:1
+       velocity : 300 RPM × 2π/60 = 31.416 rad/s (no-load max)
+       effort   : stall torque 4.0 kg·cm = 0.392 N·m (hard physics cap)
+================================================================ -->
+
+<!-- SLAM Toolbox expects a base_footprint frame by default -->
+<link name="base_footprint"/>
+<joint name="base_footprint_joint" type="fixed">
+  <origin xyz="0 0 0" rpy="0 0 0"/>
+  <parent link="base_footprint"/>
+  <child link="base_link"/>
+</joint>
+
+<link name="base_link">
+  <inertial>
+    <origin xyz="1.2942974061613468e-13 -1.3261759786386824e-13 0.03341632448103979" rpy="0 0 0"/>
+    <mass value="0.262"/>
+    <!-- ixx/iyy/izz = original × 0.5712 -->
+    <inertia ixx="0.000205" iyy="0.000205" izz="0.000214" ixy="-0.0" iyz="-0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://minibot/meshes/base_link.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <collision>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://minibot/meshes/base_link.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+  </collision>
+</link>
+
+<!-- ── WHEELS ───────────────────────────────────────────────────── -->
+<!-- Each wheel = 48 mm omni (33 g) + N20 motor (11 g) = 44 g      -->
+<!-- Inertia axes: spinning axis carries iyy_max for front/back     -->
+<!--               and ixx_max for right/left (axis-aligned)        -->
+
+<link name="wheel_front_1">
+  <inertial>
+    <origin xyz="9.816526794640485e-18 0.008 3.469446951953614e-18" rpy="0 0 0"/>
+    <mass value="0.044"/>
+    <!-- spin axis = Y → iyy largest; ixx=izz × 0.6971 -->
+    <inertia ixx="6.97e-06" iyy="1.255e-05" izz="6.97e-06" ixy="0.0" iyz="0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.0 -0.045 -0.015" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://minibot/meshes/wheel_front_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <!-- Cylinder collision: centre at link origin = wheel axle, axis along spin-axis Y -->
+  <!-- radius=0.024m (48mm dia), length=0.014m (wheel width). Visual stays as mesh. -->
+  <collision>
+    <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+    <geometry>
+      <cylinder radius="0.024" length="0.014"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="wheel_right_1">
+  <inertial>
+    <origin xyz="0.008 4.9082633973202426e-18 3.469446951953614e-18" rpy="0 0 0"/>
+    <mass value="0.044"/>
+    <!-- spin axis = X → ixx largest -->
+    <inertia ixx="1.255e-05" iyy="6.97e-06" izz="6.97e-06" ixy="0.0" iyz="0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.045 -0.0 -0.015" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://minibot/meshes/wheel_right_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <!-- Cylinder collision: centre at link origin = wheel axle, axis along spin-axis X -->
+  <collision>
+    <origin xyz="0 0 0" rpy="0 1.5708 0"/>
+    <geometry>
+      <cylinder radius="0.024" length="0.014"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="wheel_back_1">
+  <inertial>
+    <origin xyz="-4.9082633973202426e-18 -0.008 3.469446951953614e-18" rpy="0 0 0"/>
+    <mass value="0.044"/>
+    <!-- spin axis = -Y → iyy largest -->
+    <inertia ixx="6.97e-06" iyy="1.255e-05" izz="6.97e-06" ixy="0.0" iyz="-0.0" ixz="0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.0 0.045 -0.015" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://minibot/meshes/wheel_back_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <!-- Cylinder collision: centre at link origin = wheel axle, axis along spin-axis -Y (same as Y) -->
+  <collision>
+    <origin xyz="0 0 0" rpy="1.5708 0 0"/>
+    <geometry>
+      <cylinder radius="0.024" length="0.014"/>
+    </geometry>
+  </collision>
+</link>
+
+<link name="wheel_left_1">
+  <inertial>
+    <origin xyz="-0.008 9.816526794640485e-18 3.469446951953614e-18" rpy="0 0 0"/>
+    <mass value="0.044"/>
+    <!-- spin axis = -X → ixx largest -->
+    <inertia ixx="1.255e-05" iyy="6.97e-06" izz="6.97e-06" ixy="0.0" iyz="0.0" ixz="-0.0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.045 -0.0 -0.015" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://minibot/meshes/wheel_left_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+  <!-- Cylinder collision: centre at link origin = wheel axle, axis along spin-axis -X (same as X) -->
+  <collision>
+    <origin xyz="0 0 0" rpy="0 1.5708 0"/>
+    <geometry>
+      <cylinder radius="0.024" length="0.014"/>
+    </geometry>
+  </collision>
+</link>
+
+
+<!-- ── HC-SR04 SONARS ───────────────────────────────────────────── -->
+<link name="sensor_front_1">
+  <inertial>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <mass value="0.0085"/>
+    <inertia ixx="1.68e-06" iyy="1.68e-06" izz="1.68e-06" ixy="0" iyz="0" ixz="0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.0 -0.035 -0.0625" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://minibot/meshes/sensor_front_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+</link>
+
+<link name="sensor_back_1">
+  <inertial>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <mass value="0.0085"/>
+    <inertia ixx="1.68e-06" iyy="1.68e-06" izz="1.68e-06" ixy="0" iyz="0" ixz="0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.0 0.035 -0.0625" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://minibot/meshes/sensor_back_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+</link>
+
+<link name="sensor_right_1">
+  <inertial>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <mass value="0.0085"/>
+    <inertia ixx="1.68e-06" iyy="1.68e-06" izz="1.68e-06" ixy="0" iyz="0" ixz="0"/>
+  </inertial>
+  <visual>
+    <origin xyz="-0.035 0.0 -0.0625" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://minibot/meshes/sensor_right_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+</link>
+
+<link name="sensor_left_1">
+  <inertial>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <mass value="0.0085"/>
+    <inertia ixx="1.68e-06" iyy="1.68e-06" izz="1.68e-06" ixy="0" iyz="0" ixz="0"/>
+  </inertial>
+  <visual>
+    <origin xyz="0.035 0.0 -0.0625" rpy="0 0 0"/>
+    <geometry>
+      <mesh filename="package://minibot/meshes/sensor_left_1.stl" scale="0.001 0.001 0.001"/>
+    </geometry>
+    <material name="silver"/>
+  </visual>
+</link>
+
+<!-- ── WHEEL JOINTS ─────────────────────────────────────────────── -->
+<!-- type="continuous" → position-unlimited rotation                -->
+<!--
+     <limit>:
+       effort   = STALL torque = 4 kg·cm = 0.392 N·m  (hard physical cap)
+                  *** rated torque (0.049 N·m) is a THERMAL limit and belongs
+                      in the ros_control PID effort clamp, NOT here ***
+       velocity = no-load speed = 300 RPM = 31.416 rad/s
+
+     <dynamics>:
+       damping  = τ_stall / ω_noload = 0.392 / 31.416 = 0.01248 N·m·s/rad
+                  Models motor back-EMF (torque-speed curve slope).
+                  Without this, wheels freewheel forever — unrealistic for
+                  a 100:1 gearbox motor.
+       friction = conservative Coulomb friction for N20+100:1 gearbox = 0.01 N·m
+                  Upper bound estimate: K_t × I_noload = 1.307 × 0.05 = 0.065 N·m
+-->
+
+<joint name="wheel_front_joint" type="continuous">
+  <origin xyz="0.0 0.045 0.015" rpy="0 0 0"/>
+  <parent link="base_link"/>
+  <child link="wheel_front_1"/>
+  <axis xyz="0.0 1.0 0.0"/>
+  <limit effort="0.05" velocity="31.416"/>
+  <dynamics damping="0.001" friction="0.01"/>
+</joint>
+
+<joint name="wheel_right_joint" type="continuous">
+  <origin xyz="0.045 0.0 0.015" rpy="0 0 0"/>
+  <parent link="base_link"/>
+  <child link="wheel_right_1"/>
+  <axis xyz="1.0 0.0 0.0"/>
+  <limit effort="0.05" velocity="31.416"/>
+  <dynamics damping="0.001" friction="0.01"/>
+</joint>
+
+<joint name="wheel_back_joint" type="continuous">
+  <origin xyz="0.0 -0.045 0.015" rpy="0 0 0"/>
+  <parent link="base_link"/>
+  <child link="wheel_back_1"/>
+  <axis xyz="0.0 -1.0 0.0"/>
+  <limit effort="0.05" velocity="31.416"/>
+  <dynamics damping="0.001" friction="0.01"/>
+</joint>
+
+<joint name="wheel_left_joint" type="continuous">
+  <origin xyz="-0.045 0.0 0.015" rpy="0 0 0"/>
+  <parent link="base_link"/>
+  <child link="wheel_left_1"/>
+  <axis xyz="-1.0 0.0 0.0"/>
+  <limit effort="0.05" velocity="31.416"/>
+  <dynamics damping="0.001" friction="0.01"/>
+</joint>
+
+
+<joint name="sensor_front_joint" type="fixed">
+  <origin xyz="0.0 0.035 0.0625" rpy="0 0 0"/>
+  <parent link="base_link"/>
+  <child link="sensor_front_1"/>
+</joint>
+
+<joint name="sensor_back_joint" type="fixed">
+  <origin xyz="0.0 -0.035 0.0625" rpy="0 0 0"/>
+  <parent link="base_link"/>
+  <child link="sensor_back_1"/>
+</joint>
+
+<joint name="sensor_right_joint" type="fixed">
+  <origin xyz="0.035 0.0 0.0625" rpy="0 0 0"/>
+  <parent link="base_link"/>
+  <child link="sensor_right_1"/>
+</joint>
+
+<joint name="sensor_left_joint" type="fixed">
+  <origin xyz="-0.035 0.0 0.0625" rpy="0 0 0"/>
+  <parent link="base_link"/>
+  <child link="sensor_left_1"/>
+</joint>
+
+<!-- ================================================================
+     ROS 2 CONTROL HARDWARE INTERFACE
+     Replaces minibot_urdf.trans (ROS 1 transmission syntax).
+     GazeboSystem is the Gazebo Classic hardware plugin that reads
+     velocity commands and reports joint position + velocity states.
+
+     command_interface velocity min/max = ±31.416 rad/s (300 RPM)
+     state_interfaces: position (rad) and velocity (rad/s)
+     Fixed joints (sensors) are not actuated → not listed here.
+================================================================ -->
+<ros2_control name="GazeboSystem" type="system">
+  <hardware>
+    <plugin>gazebo_ros2_control/GazeboSystem</plugin>
+  </hardware>
+
+  <!-- wheel_front_1  spin axis = +Y -->
+  <joint name="wheel_front_joint">
+    <command_interface name="velocity">
+      <param name="min">-31.416</param>
+      <param name="max"> 31.416</param>
+    </command_interface>
+    <state_interface name="position"/>
+    <state_interface name="velocity"/>
+  </joint>
+
+  <!-- wheel_right_1  spin axis = +X -->
+  <joint name="wheel_right_joint">
+    <command_interface name="velocity">
+      <param name="min">-31.416</param>
+      <param name="max"> 31.416</param>
+    </command_interface>
+    <state_interface name="position"/>
+    <state_interface name="velocity"/>
+  </joint>
+
+  <!-- wheel_back_1   spin axis = -Y -->
+  <joint name="wheel_back_joint">
+    <command_interface name="velocity">
+      <param name="min">-31.416</param>
+      <param name="max"> 31.416</param>
+    </command_interface>
+    <state_interface name="position"/>
+    <state_interface name="velocity"/>
+  </joint>
+
+  <!-- wheel_left_1   spin axis = -X -->
+  <joint name="wheel_left_joint">
+    <command_interface name="velocity">
+      <param name="min">-31.416</param>
+      <param name="max"> 31.416</param>
+    </command_interface>
+    <state_interface name="position"/>
+    <state_interface name="velocity"/>
+  </joint>
+</ros2_control>
+
+<!-- ── NRF24L01 Transceiver ─────────────────────────────────────── -->
+<link name="nrf24l01_link">
+  <inertial>
+    <mass value="0.0017"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <inertia ixx="1e-6" iyy="1e-6" izz="1e-6" ixy="0" iyz="0" ixz="0"/>
+  </inertial>
+  <visual>
+    <!-- PCB -->
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <geometry>
+      <box size="0.015 0.029 0.0015"/>
+    </geometry>
+    <material name="green">
+      <color rgba="0 0.8 0 1"/>
+    </material>
+  </visual>
+  <visual>
+    <!-- Antenna -->
+    <origin xyz="-0.007 0 0.04" rpy="0 0 0"/>
+    <geometry>
+      <cylinder radius="0.0025" length="0.08"/>
+    </geometry>
+    <material name="black">
+      <color rgba="0 0 0 1"/>
+    </material>
+  </visual>
+  <collision>
+    <origin xyz="0 0 0.04" rpy="0 0 0"/>
+    <geometry>
+      <cylinder radius="0.01" length="0.08"/>
+    </geometry>
+  </collision>
+</link>
+
+<joint name="nrf24l01_joint" type="fixed">
+  <origin xyz="-0.02 0.0 0.035" rpy="0 0 0"/>
+  <parent link="base_link"/>
+  <child link="nrf24l01_link"/>
+</joint>
+
+</robot>

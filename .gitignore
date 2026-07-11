@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+.env
+
+# Custom
+discord_webhook.txt
+Consensus Based Decentralized Auctions for Robust Task Allocation.pdf
+
+# ROS 2 Workspaces
+build/
+install/
+log/

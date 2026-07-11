@@ -1,0 +1,68 @@
+# ================================================================
+# ROS 2 ros2_control controller configuration
+# Loaded by libgazebo_ros2_control.so via minibot_urdf.gazebo
+# ================================================================
+#
+# NOTE: Joints were renamed from "Revolute N" (spaces → broke param paths)
+#       to "wheel_*_joint" (clean names) in minibot_urdf.xacro.
+# ================================================================
+
+controller_manager:
+  ros__parameters:
+    update_rate: 100  # Hz
+
+    # Broadcasts all joint states → /joint_states
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+    # ── Wheel velocity controllers ─────────────────────────────────
+    # Correct type for ROS 2 Humble: JointGroupVelocityController
+    # (JointVelocityController does NOT exist in ros2_controllers Humble)
+    # Command topic: /<name>/commands  msg: std_msgs/Float64MultiArray
+    wheel_front_velocity_controller:
+      type: velocity_controllers/JointGroupVelocityController
+
+    wheel_right_velocity_controller:
+      type: velocity_controllers/JointGroupVelocityController
+
+    wheel_back_velocity_controller:
+      type: velocity_controllers/JointGroupVelocityController
+
+    wheel_left_velocity_controller:
+      type: velocity_controllers/JointGroupVelocityController
+
+
+# ── Per-controller parameters ─────────────────────────────────────
+# JointGroupVelocityController uses "joints:" (list), NOT "joint:" (scalar)
+# Each controller manages a single wheel joint.
+
+wheel_front_velocity_controller:
+  ros__parameters:
+    joints:
+      - "wheel_front_joint"
+
+wheel_right_velocity_controller:
+  ros__parameters:
+    joints:
+      - "wheel_right_joint"
+
+wheel_back_velocity_controller:
+  ros__parameters:
+    joints:
+      - "wheel_back_joint"
+
+wheel_left_velocity_controller:
+  ros__parameters:
+    joints:
+      - "wheel_left_joint"
+
+
+
+# ── PID NOTE ──────────────────────────────────────────────────────
+# Hardware-level PIDs for GazeboSystem are intentionally omitted.
+# Reason: joint names contain spaces → invalid ROS 2 param paths.
+# Physics correctness is maintained by the URDF <dynamics> element:
+#   damping  = 0.01248 N·m·s/rad  (back-EMF from stall/no-load curve)
+#   friction = 0.01   N·m         (static gearbox Coulomb friction)
+# The GazeboSystem passthrough + joint dynamics gives realistic velocity
+# behaviour without needing an explicit software PID loop.

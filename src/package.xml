@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd"
+            schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>minibot</name>
+  <version>1.0.0</version>
+  <description>
+    URDF description for the minibot 4-wheel omnidirectional robot.
+    Wheels: 48 mm omni, Motors: N20 GA12 100:1 @ 300 RPM,
+    Sensors: HC-SR04P ultrasonic (x4).
+    Targets ROS 2 Humble + Gazebo Classic 11.
+  </description>
+
+  <maintainer email="atharvm25@iitk.ac.in">todo</maintainer>
+  <license>Apache-2.0</license>
+
+  <!-- Build tool -->
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <!-- URDF / xacro processing -->
+  <depend>xacro</depend>
+  <depend>robot_state_publisher</depend>
+  <depend>joint_state_publisher</depend>
+  <depend>joint_state_publisher_gui</depend>
+
+  <!-- Gazebo Classic 11 + ROS 2 bridge -->
+  <depend>gazebo_ros</depend>
+  <depend>gazebo_ros2_control</depend>
+
+  <!-- ros2_control stack -->
+  <depend>ros2_control</depend>
+  <depend>ros2_controllers</depend>
+  <depend>controller_manager</depend>
+
+  <!-- Visualisation -->
+  <depend>rviz2</depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

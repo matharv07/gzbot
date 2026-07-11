@@ -1,0 +1,79 @@
+<?xml version="1.0" ?>
+<!-- ================================================================
+     DEPRECATED — ROS 1 ONLY.  Not loaded in ROS 2.
+     This file used transmission_interface/SimpleTransmission syntax
+     which is specific to ROS 1 ros_control.
+
+     In ROS 2 this is replaced by the <ros2_control> block at the
+     bottom of minibot_urdf.xacro, which declares:
+       - hardware plugin: gazebo_ros2_control/GazeboSystem
+       - command_interface: velocity (±31.416 rad/s)
+       - state_interfaces:  position, velocity
+     Kept here for reference / ROS 1 compatibility if needed.
+================================================================ -->
+<robot name="minibot_urdf" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+<!-- ================================================================
+     TRANSMISSIONS — VelocityJointInterface
+     ─────────────────────────────────────────────────────────────────
+     Motor: N20 GA12, actual internal gear ratio = 100:1
+     mechanicalReduction = 1  (NOT the gear ratio)
+       The gearbox is internal to the motor body. All quantities
+       in <limit> and <dynamics> are already referred to the OUTPUT
+       SHAFT (post-gearbox, wheel axle). ros_control sees the joint
+       as a direct-drive actuator at the wheel — mechanicalReduction=1
+       is therefore correct.
+     If you ever separate motor inertia from wheel inertia, set
+       mechanicalReduction = 100 and re-refer all limits.
+
+     VelocityJointInterface: correct for omni-wheel drive where each
+     wheel receives an angular-velocity set-point from the kinematic
+     mixer (Vx, Vy, ω_z → wheel speeds). The motor driver PID
+     handles torque internally; ros_control commands velocity.
+================================================================ -->
+
+<transmission name="Revolute 9_tran">
+  <type>transmission_interface/SimpleTransmission</type>
+  <joint name="Revolute 9">
+    <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+  </joint>
+  <actuator name="Revolute 9_actr">
+    <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+    <mechanicalReduction>1</mechanicalReduction>
+  </actuator>
+</transmission>
+
+<transmission name="Revolute 10_tran">
+  <type>transmission_interface/SimpleTransmission</type>
+  <joint name="Revolute 10">
+    <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+  </joint>
+  <actuator name="Revolute 10_actr">
+    <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+    <mechanicalReduction>1</mechanicalReduction>
+  </actuator>
+</transmission>
+
+<transmission name="Revolute 11_tran">
+  <type>transmission_interface/SimpleTransmission</type>
+  <joint name="Revolute 11">
+    <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+  </joint>
+  <actuator name="Revolute 11_actr">
+    <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+    <mechanicalReduction>1</mechanicalReduction>
+  </actuator>
+</transmission>
+
+<transmission name="Revolute 12_tran">
+  <type>transmission_interface/SimpleTransmission</type>
+  <joint name="Revolute 12">
+    <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+  </joint>
+  <actuator name="Revolute 12_actr">
+    <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+    <mechanicalReduction>1</mechanicalReduction>
+  </actuator>
+</transmission>
+
+</robot>
