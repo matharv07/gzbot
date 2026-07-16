@@ -31,6 +31,7 @@ install(
     scripts/spawn_arena.py
     scripts/pacman_node.py
     scripts/ghost_node.py
+    scripts/score_visualizer.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

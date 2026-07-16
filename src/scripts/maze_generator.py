@@ -18,10 +18,10 @@ import numpy as np
 from typing import Tuple, List
 
 # ── Arena dimensions ──────────────────────────────────────────────────────────
-ROWS        = 31          # maze rows   (matches pacman.py)
-COLS        = 29          # maze cols   (odd recommended)
+ROWS        = 33          # maze rows   (matches pacman.py stage-4: 33 rows)
+COLS        = 41          # maze cols   (matches pacman.py stage-4: 41 cols)
 CELL_SIZE   = 0.35        # metres per grid cell (matches prev sessions)
-N_GHOSTS    = 4
+N_GHOSTS    = 7           # 7 ghosts — one per GHOST_COLORS_RGB entry
 N_POWER     = 28          # number of power pellets
 
 # ── Cell types ────────────────────────────────────────────────────────────────

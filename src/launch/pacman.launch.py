@@ -210,6 +210,35 @@ def generate_launch_description():
         )
     ])
 
+    # ── Score Visualizer (dedicated terminal window) ───────────────────────
+    # Try xterm first (most universally available), fall back to
+    # gnome-terminal / x-terminal-emulator if xterm is missing.
+    score_vis_cmd = [
+        'bash', '-c',
+        (
+            'TITLE="PAC-MAN STATS"; '
+            f'PYPATH="{py_path}"; '
+            'CMD="python3 {script} 2>&1"; '
+            'if command -v xterm &>/dev/null; then '
+            f'    xterm -title "$TITLE" -bg black -fg green -geometry 72x28 '
+            f'    -e "PYTHONPATH={py_path} python3 {os.path.join(_SCRIPTS_DIR, "score_visualizer.py")} 2>&1"; '
+            'elif command -v gnome-terminal &>/dev/null; then '
+            f'    gnome-terminal --title "$TITLE" -- bash -c '
+            f'    "PYTHONPATH={py_path} python3 {os.path.join(_SCRIPTS_DIR, "score_visualizer.py")} 2>&1; read"; '
+            'else '
+            f'    x-terminal-emulator -e "PYTHONPATH={py_path} python3 {os.path.join(_SCRIPTS_DIR, "score_visualizer.py")} 2>&1"; '
+            'fi'
+        )
+    ]
+
+    score_visualizer = TimerAction(period=27.0, actions=[
+        ExecuteProcess(
+            cmd=score_vis_cmd,
+            output='screen',
+            additional_env=child_env,
+        )
+    ])
+
     return LaunchDescription([
         paused_arg,
         gazebo,
@@ -219,4 +248,5 @@ def generate_launch_description():
         pacman_node,
         *ghost_nodes,
         visualizer,
+        score_visualizer,
     ])

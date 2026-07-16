@@ -243,22 +243,67 @@ class ArenaSpawner(Node):
         return [('arena_grid', "\n".join(xml), _pose(0.0, 0.0, 0.0))]
 
     def _pellet_entities(self):
-        entities = []
-        for r, c, ct in pellet_positions(self._grid):
+        """
+        Pack ALL pellets and power-pellets into ONE combined static-free SDF model
+        ("pellet_field").  Each pellet is a separate named link within the model
+        so SetEntityState can teleport individual ones below ground on consumption.
+
+        One SpawnEntity call instead of 300+  →  instant load.
+        """
+        rows, cols = self._grid.shape
+        positions  = pellet_positions(self._grid)
+        if not positions:
+            return []
+
+        xml = [
+            '<?xml version="1.0"?>',
+            '<sdf version="1.6">',
+            '  <model name="pellet_field">',
+            '    <static>false</static>',
+            '    <pose>0 0 0 0 0 0</pose>',
+        ]
+
+        for r, c, ct in positions:
             wx, wy, _ = grid_to_world(r, c)
             if ct == PELLET:
                 name   = f'pellet_{r}_{c}'
                 radius = PELLET_R
                 z      = PELLET_Z
-                col    = (1.0, 1.0, 1.0)   # white
+                cr, cg, cb = 1.0, 1.0, 1.0    # white
             else:
                 name   = f'power_{r}_{c}'
                 radius = POWER_R
                 z      = POWER_Z
-                col    = (1.0, 0.84, 0.0)  # gold
-            sdf = _sphere_sdf(name, radius, *col)
-            entities.append((name, sdf, _pose(wx, wy, z)))
-        return entities
+                cr, cg, cb = 1.0, 0.84, 0.0   # gold
+
+            er = cr * 0.65
+            eg = cg * 0.65
+            eb = cb * 0.65
+
+            xml.append(f"""
+    <link name="{name}">
+      <pose>{wx:.6f} {wy:.6f} {z:.6f} 0 0 0</pose>
+      <gravity>false</gravity>
+      <inertial><mass>0.001</mass></inertial>
+      <collision name="col">
+        <geometry><sphere><radius>{radius}</radius></sphere></geometry>
+        <surface><contact><collide_without_contact>true</collide_without_contact></contact></surface>
+      </collision>
+      <visual name="vis">
+        <geometry><sphere><radius>{radius}</radius></sphere></geometry>
+        <material>
+          <ambient>{cr} {cg} {cb} 1</ambient>
+          <diffuse>{cr} {cg} {cb} 1</diffuse>
+          <emissive>{er:.3f} {eg:.3f} {eb:.3f} 1</emissive>
+        </material>
+      </visual>
+    </link>""")
+
+        xml.append('  </model>')
+        xml.append('</sdf>')
+
+        sdf = '\n'.join(xml)
+        return [('pellet_field', sdf, _pose(0.0, 0.0, 0.0))]
 
     def _bot_entities(self):
         entities = []
@@ -286,7 +331,7 @@ class ArenaSpawner(Node):
     # Fix: send CHUNK_SIZE requests, spin until that chunk fully resolves,
     # then send the next chunk.  Fast (parallel within each chunk) and safe.
 
-    CHUNK_SIZE = 10   # simultaneous requests per batch
+    CHUNK_SIZE = 20   # simultaneous requests per batch (fewer total entities now)
 
     def _batch_spawn(self, entities, timeout_per_entity: float = 8.0):
         total   = len(entities)

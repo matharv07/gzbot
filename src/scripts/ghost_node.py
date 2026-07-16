@@ -25,10 +25,8 @@ Topics published
   /nrf24/<name>/tx             (std_msgs/String, JSON)    — outbound NRF24
 """
 import json
-import math
 import sys
 import os
-import random
 
 import rclpy
 from rclpy.node import Node
@@ -43,8 +41,7 @@ if _THIS_DIR not in sys.path:
 
 from maze_generator import (
     PACMAN_NAME, GHOST_NAMES, NRF_RADIUS_M,
-    world_to_grid, grid_to_world, CELL_SIZE,
-    ROWS, COLS, SPAWN_Z
+    world_to_grid, CELL_SIZE, SPAWN_Z
 )
 
 
@@ -60,12 +57,6 @@ class GhostNode(Node):
         self._y = 0.0
         self._row = 0
         self._col = 0
-        self._target_row = None
-        self._target_col = None
-        self._grid, _ = generate_map(seed=42)
-        self._rows = self._grid.shape[0]
-        self._cols = self._grid.shape[1]
-        self._speed = 0.09  # half of pacman
         self._pacman_pos: tuple[int, int] | None = None
         self._pacman_powered: bool = False
         self._frame: int = 0
@@ -129,45 +120,11 @@ class GhostNode(Node):
     def _control_loop(self):
         self._frame += 1
 
-        if self._x == 0.0 and self._y == 0.0 and self._row == 0:
-            return
+        # ── Ghost AI not yet implemented — hold spawn position ────────────────
+        # Publish zero velocity so the planar_move plugin doesn't drift.
+        self._cmd_pub.publish(Twist())
 
-        if self._target_row is None:
-            self._target_row, self._target_col = self._row, self._col
-
-        tx, ty = cell_center_world(self._target_row, self._target_col)
-        err_x = tx - self._x
-        err_y = ty - self._y
-        dist = math.hypot(err_x, err_y)
-        
-        if dist < 0.05:
-            # Reached target cell, pick a new adjacent valid cell
-            valid_dirs = []
-            for dr, dc in [(-1,0), (1,0), (0,-1), (0,1)]:
-                nr, nc = self._target_row + dr, self._target_col + dc
-                if 0 <= nr < self._rows and 0 <= nc < self._cols:
-                    if self._grid[nr, nc] != 1: # WALL = 1
-                        valid_dirs.append((nr, nc))
-            if valid_dirs:
-                self._target_row, self._target_col = random.choice(valid_dirs)
-            else:
-                self._target_row, self._target_col = self._row, self._col
-                
-            tx, ty = cell_center_world(self._target_row, self._target_col)
-            err_x = tx - self._x
-            err_y = ty - self._y
-            dist = math.hypot(err_x, err_y)
-
-        cmd = Twist()
-        # Omni-directional strafing
-        if dist > 0.005:
-            cmd.linear.x = (err_x / dist) * self._speed
-            cmd.linear.y = (err_y / dist) * self._speed
-            
-        cmd.angular.z = 0.0
-        self._cmd_pub.publish(cmd)
-
-        # Broadcast own location via NRF24 every 5 frames (≈ 0.5 s)
+        # ── NRF24 heartbeat (own position) ───────────────────────────────────
         if self._frame % 5 == 0:
             pkt = {
                 'id':    [int(self._ghost_id), int(self._frame), 0],
@@ -182,6 +139,7 @@ class GhostNode(Node):
     def _stop(self):
         if rclpy.ok():
             self._cmd_pub.publish(Twist())
+
 
 
 def main(args=None):
