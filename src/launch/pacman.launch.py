@@ -111,10 +111,8 @@ def generate_launch_description():
     }
 
     # PYTHONPATH for every child process so they can import maze_generator
-    import random
-    seed_val = str(random.randint(1, 9999999))
     py_path = _SCRIPTS_DIR + pathsep + environ.get('PYTHONPATH', '')
-    child_env = {**gz_env, 'PYTHONPATH': py_path, 'PACMAN_SEED': seed_val}
+    child_env = {**gz_env, 'PYTHONPATH': py_path}
 
     # ── Arguments ──────────────────────────────────────────────────────────
     paused_arg = DeclareLaunchArgument(
