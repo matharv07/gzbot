@@ -45,13 +45,13 @@ from maze_generator import (
 # ── Motion constants ──────────────────────────────────────────────────────────
 BOT_SPEED      = 2.0           # m/s
 ARRIVE_DIST    = 0.25          # m — early lookahead for smooth braking before turns
-CELL_SNAP_DIST = 0.01          # m — dead-band: zero cmd if closer than this
+CELL_SNAP_DIST = 0.03          # m — dead-band: zero cmd if closer than this
 CROSS_KP       = 6.0           # cross-axis P gain (gentle centering)
 DECEL_DIST     = 0.10          # m — start decelerating this far from target
-DECEL_MIN_SPD  = 0.35          # m/s — minimum speed during deceleration
+DECEL_MIN_SPD  = 0.8           # m/s — minimum speed during deceleration
 
 # ── Power pellet ──────────────────────────────────────────────────────────────
-POWER_TICKS   = 120         # 4 seconds at 30 Hz
+POWER_TICKS   = int((40 * CELL_SIZE / BOT_SPEED) * 30.0) # 40 cells * (time per cell at BOT_SPEED) at 30 Hz
 PELLET_RADIUS = 0.075       # 7.5 cm (approx bot physical radius)
 
 # ── NRF ───────────────────────────────────────────────────────────────────────
@@ -128,7 +128,9 @@ class PacmanNode(Node):
         # ── Physical state ────────────────────────────────────────────────────
         self._row, self._col = self._start
         self._x, self._y     = cell_center_world(self._row, self._col)
+        self._z              = SPAWN_Z
         self._yaw            = 0.0
+        self._q              = None
 
         # ── Game state ────────────────────────────────────────────────────────
         self._score         = 0
@@ -161,11 +163,10 @@ class PacmanNode(Node):
         # ── Navigation target ────────────────────────────────────────────────
         self._target_row = self._row
         self._target_col = self._col
-        self._arrived    = True      # one-shot flag: True = at target, need new
+        self._arrived    = False     # one-shot flag: True = at target, need new
         self._centering  = False     # True = homing to cell centre before turning
         self._centering_axis = 'x'
         self._pending_target = (self._row, self._col)
-        self._choose_next_target()   # prime first real target
 
         # ── NRF dedup ─────────────────────────────────────────────────────────
         self._seen_ids: set = set()
@@ -197,9 +198,11 @@ class PacmanNode(Node):
     def _odom_cb(self, msg: Odometry):
         self._x = msg.pose.pose.position.x
         self._y = msg.pose.pose.position.y
+        self._z = msg.pose.pose.position.z
+        self._q = msg.pose.pose.orientation
         self._row, self._col = world_to_grid(self._x, self._y)
         
-        q = msg.pose.pose.orientation
+        q = self._q
         siny_cosp = 2.0 * (q.w * q.z + q.x * q.y)
         cosy_cosp = 1.0 - 2.0 * (q.y * q.y + q.z * q.z)
         self._yaw = math.atan2(siny_cosp, cosy_cosp)
@@ -494,7 +497,7 @@ class PacmanNode(Node):
                 self._dead = False
                 self._row, self._col = self._start
                 self._target_row, self._target_col = self._start
-                self._arrived   = True
+                self._arrived   = False
                 self._centering = False
                 self._centering_axis = 'x'
                 self._powered   = False
@@ -502,7 +505,7 @@ class PacmanNode(Node):
                 self._m_row = self._m_col = 0.0
                 self._v_row = self._v_col = 0.0
                 self._adam_t = 0
-                self._teleport_self(*grid_to_world(self._row, self._col))
+                self._teleport_self(*grid_to_world(self._row, self._col), force_z=SPAWN_Z)
             self._cmd_pub.publish(Twist())
             return
 
@@ -592,6 +595,7 @@ class PacmanNode(Node):
             self._stats_pub.publish(String(data=json.dumps({
                 'tick': int(self._tick), 'score': int(self._score),
                 'powered': self._powered, 'power_timer': int(self._power_timer),
+                'power_timer_max': int(POWER_TICKS),
                 'row': int(self._row), 'col': int(self._col), 'pellets_left': pl,
                 'pellets_eaten': int(self._pellets_eaten),
                 'power_eaten': int(self._power_eaten),
@@ -672,7 +676,7 @@ class PacmanNode(Node):
 
         return cmd
 
-    def _teleport_self(self, x: float, y: float, z: float = SPAWN_Z):
+    def _teleport_self(self, x: float, y: float, force_z: float = None):
         if not self._set_state.service_is_ready():
             return
         req   = SetEntityState.Request()
@@ -680,8 +684,11 @@ class PacmanNode(Node):
         state.name = PACMAN_NAME
         state.pose.position.x = x
         state.pose.position.y = y
-        state.pose.position.z = z
-        state.pose.orientation.w = 1.0
+        state.pose.position.z = force_z if force_z is not None else self._z
+        if self._q is not None and force_z is None:
+            state.pose.orientation = self._q
+        else:
+            state.pose.orientation.w = 1.0
         req.state = state
         self._set_state.call_async(req)
 

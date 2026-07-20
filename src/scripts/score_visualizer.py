@@ -182,8 +182,9 @@ class ScoreVisualizer(Node):
 
         # Power state
         if powered:
+            max_timer = s.get('power_timer_max', 40)
             pow_str = (f'{BOLD}{BLINK}{FG_CYAN}⚡ POWERED{RESET}  '
-                       + _power_bar(power_timer)
+                       + _power_bar(power_timer, max_timer=max_timer)
                        + f'  {power_timer} ticks')
         else:
             pow_str = f'{DIM}inactive{RESET}'
