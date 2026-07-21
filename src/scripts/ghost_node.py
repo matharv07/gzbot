@@ -107,6 +107,7 @@ class GhostNode(Node):
         
         self.message_queue = []
         self.last_heartbeat = {}
+        self.known_intents = {}
         self.seq = 0
         
         self.last_sync_frame = {}
@@ -438,6 +439,13 @@ class GhostNode(Node):
                         self.last_lost_pacman = (pr, pc)
                         self.pacman_last_seen = pf
                         relay_diffs.append(diff)
+                elif dtype == "intent":
+                    _, gid, r, c, tr, tc, dr, dc, orig_frame = diff
+                    if gid == self.gid: continue
+                    existing = self.known_intents.get(gid, (0,0,0,0,0,0,-1))
+                    if orig_frame > existing[6]:
+                        self.known_intents[gid] = (r, c, tr, tc, dr, dc, orig_frame)
+                        relay_diffs.append(diff)
                 elif dtype == "cbba":
                     _, gid, payload = diff
                     if gid == self.gid: continue
@@ -657,6 +665,55 @@ class GhostNode(Node):
 
     def _compute_cmd(self, tx: float, ty: float) -> Twist:
         cmd   = Twist()
+        
+        slide_x = 0.0
+        slide_y = 0.0
+        speed_mod = 1.0
+        
+        yield_score = 0
+        pass_score = 0
+        slide_right = False
+        
+        my_r, my_c = self.row, self.col
+        my_tr, my_tc = self._target_row, self._target_col
+        dr, dc = self._nav_dir
+        
+        for other_gid, intent in self.known_intents.items():
+            o_r, o_c, o_tr, o_tc, o_dr, o_dc, o_frame = intent
+            if self.frame - o_frame > 20: continue 
+            
+            is_same_target = (my_tr, my_tc) == (o_tr, o_tc)
+            is_swap = (my_tr, my_tc) == (o_r, o_c) and (o_tr, o_tc) == (my_r, my_c)
+            i_am_enterer = (my_tr, my_tc) == (o_r, o_c) and not is_swap
+            i_am_leaver = (o_tr, o_tc) == (my_r, my_c) and not is_swap
+            
+            conflict = is_same_target or is_swap or i_am_enterer or i_am_leaver
+            
+            if conflict:
+                slide_right = True
+                if i_am_enterer:
+                    yield_score += 1
+                elif i_am_leaver:
+                    pass_score += 1
+                else:
+                    if self.gid > other_gid: yield_score += 1
+                    else: pass_score += 1
+                    
+        if slide_right:
+            slide_amount = 0.08
+            slide_x = -dr * slide_amount
+            slide_y = -dc * slide_amount
+            
+            if yield_score > pass_score:
+                speed_mod = 0.6
+            elif pass_score > yield_score:
+                speed_mod = 1.4
+            else:
+                speed_mod = 0.8
+            
+        tx += slide_x
+        ty += slide_y
+        
         err_x = tx - self._x
         err_y = ty - self._y
         dist  = math.hypot(err_x, err_y)
@@ -665,24 +722,21 @@ class GhostNode(Node):
             cmd.angular.z = -15.0 * self._yaw
             return cmd
 
-        dr, dc = self._nav_dir
-
-        vx = 0.0
-        vy = 0.0
+        speed = BOT_SPEED * speed_mod
 
         if self._centering:
-            p_gain = BOT_SPEED / ARRIVE_DIST
+            p_gain = speed / ARRIVE_DIST
             if self._centering_axis == 'x':
-                vx_raw = err_x * p_gain
-                vx = math.copysign(max(DECEL_MIN_SPD, min(BOT_SPEED, abs(vx_raw))), vx_raw)
+                along_err = (tx - slide_x) - self._x
+                vx_raw = along_err * p_gain
+                vx = math.copysign(max(DECEL_MIN_SPD * speed_mod, min(speed, abs(vx_raw))), vx_raw)
                 vy = err_y * CROSS_KP
             else:
-                vy_raw = err_y * p_gain
+                along_err = (ty - slide_y) - self._y
+                vy_raw = along_err * p_gain
                 vx = err_x * CROSS_KP
-                vy = math.copysign(max(DECEL_MIN_SPD, min(BOT_SPEED, abs(vy_raw))), vy_raw)
+                vy = math.copysign(max(DECEL_MIN_SPD * speed_mod, min(speed, abs(vy_raw))), vy_raw)
         else:
-            speed = BOT_SPEED
-            
             if dc != 0:
                 vx = math.copysign(speed, err_x)
                 vy = err_y * CROSS_KP
@@ -747,6 +801,7 @@ class GhostNode(Node):
         if self.frame % 3 == 0:
             self._check_liveness()
             diffs = self._update_personal_map()
+            diffs.append(("intent", self.gid, int(self.row), int(self.col), int(self._target_row), int(self._target_col), int(self._nav_dir[0]), int(self._nav_dir[1]), int(self.frame)))
             if self.frame % HEARTBEAT_EVERY == 0:
                 diffs.append(("heartbeat", self.gid, int(self.row), int(self.col), int(self.frame)))
             self._broadcast_nrf(diffs)
